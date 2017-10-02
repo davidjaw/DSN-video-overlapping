@@ -71,6 +71,23 @@ def write_output(frames, mask_attr, output_dir, batch_size, filename):
     writer.release()
 
 
+def write_img_output(frames, mask_attr, output_dir, batch_size, filename):
+    frames *= 255.
+    frames = frames.astype('uint8')
+    file_dir = output_dir + mask_attr
+    if not os.path.exists(file_dir):
+        os.makedirs(file_dir)
+    # fourcc = cv2.VideoWriter_fourcc(*'PIM1')
+    # writer = cv2.VideoWriter(filename=file_dir + '/' + filename, fourcc=fourcc, fps=30.0,
+    #                          frameSize=(frames.shape[2], frames.shape[1]), isColor=True)
+    # for i in range(batch_size):
+    #     writer.write(frames[i, :, :, :])
+    # writer.release()
+    for i in range(batch_size):
+        cv2.imwrite('{:s}{:s}/{:s}_{:d}.jpg'.format(output_dir, mask_attr, filename, i), frames[i, :, :, :],
+                    [int(cv2.IMWRITE_JPEG_QUALITY), 90])
+
+
 def random_masks(mask_lists, batch_size, resize_size, mask_attr):
     r_attr = ''.join([str(x + 1) for x in np.random.randint(3, size=3).tolist()])
     r_coord_w, r_coord_h = [np.random.randint(0, 1000 - resize_size[0]), np.random.randint(0, 1000 - resize_size[1])]

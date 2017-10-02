@@ -9,9 +9,9 @@ base_dir = './wo_snow_vid/'
 mask_attr_route = './mask_attr'
 batch_frames = 90
 
-out_base_dir = './overlap/synthesized/'
-out_base_dir_mask = './overlap/mask/'
-out_base_dir_gt = './overlap/gt/'
+out_base_dir = '/home/share/DesnowNet/dataset/DSN_video/syn/'
+out_base_dir_mask = '/home/share/DesnowNet/dataset/DSN_video/mask/'
+out_base_dir_gt = '/home/share/DesnowNet/dataset/DSN_video/gt/'
 skip = 0
 
 
@@ -52,12 +52,12 @@ def main():
                 masks /= 255.
 
                 overlapped = sess.run(overlapping, feed_dict={base: frames, mask: masks})
-                util.write_output(overlapped, overlapped_mask_attr, out_base_dir, batch_frames,
-                                  filename='mask_{:d}_{:d}.avi'.format(video_index, int(index / batch_frames)))
-                util.write_output(frames, overlapped_mask_attr, out_base_dir_gt, batch_frames,
-                                  filename='mask_{:d}_{:d}.avi'.format(video_index, int(index / batch_frames)))
-                util.write_output(masks, overlapped_mask_attr, out_base_dir_mask, batch_frames,
-                                  filename='mask_{:d}_{:d}.avi'.format(video_index, int(index / batch_frames)))
+                util.write_img_output(overlapped, overlapped_mask_attr, out_base_dir, batch_frames,
+                                      filename='mask_{:d}_{:d}'.format(video_index, int(index / batch_frames)))
+                util.write_img_output(frames, overlapped_mask_attr, out_base_dir_gt, batch_frames,
+                                      filename='mask_{:d}_{:d}'.format(video_index, int(index / batch_frames)))
+                util.write_img_output(masks, overlapped_mask_attr, out_base_dir_mask, batch_frames,
+                                      filename='mask_{:d}_{:d}'.format(video_index, int(index / batch_frames)))
                 print('mask_{:d}_{:d}.mp4 is created'.format(video_index, int(index / batch_frames)))
 
 

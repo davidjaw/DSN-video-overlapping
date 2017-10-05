@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import os
+import random
+from functools import reduce
 
 
 def get_vid_info(video_handle):
@@ -89,12 +91,28 @@ def write_img_output(frames, mask_attr, output_dir, batch_size, filename):
 
 
 def random_masks(mask_lists, batch_size, resize_size, mask_attr):
-    r_attr = ''.join([str(x + 1) for x in np.random.randint(3, size=3).tolist()])
-    r_coord_w, r_coord_h = [np.random.randint(0, 1000 - resize_size[0]), np.random.randint(0, 1000 - resize_size[1])]
+    mask_total = sum([len(mask_attr[x]) for x in mask_attr.keys()])
 
-    # check if attr exist
-    while r_attr not in mask_attr.keys():
-        r_attr = ''.join([str(x + 1) for x in np.random.randint(3, size=3).tolist()])
+    mask_boundary, mask_order = [{}, []]
+    for x in mask_attr.keys():
+        mask_boundary[x] = len(mask_attr[x]) / mask_total
+        mask_order.append(int(x))
+    mask_order.sort()
+    mask_boundary = [mask_boundary[str(x)] for x in mask_order]
+
+    temp, mask_dict = [0, []]
+    for index in range(len(mask_boundary)):
+        ratio = mask_boundary[index]
+        current_ratio = temp + ratio
+        mask_dict.append(current_ratio)
+        temp += ratio
+
+    r_attr = random.random()
+    for i in range(len(mask_dict)):
+        if mask_dict[i] > r_attr:
+            r_attr = str(mask_order[i])
+            break
+    r_coord_w, r_coord_h = [np.random.randint(0, 1000 - resize_size[0]), np.random.randint(0, 1000 - resize_size[1])]
 
     # select a random mask from attr list
     mask_number = mask_attr[r_attr][np.random.randint(0, len(mask_attr[r_attr]))]

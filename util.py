@@ -86,32 +86,37 @@ def write_img_output(frames, mask_attr, output_dir, batch_size, filename):
     #     writer.write(frames[i, :, :, :])
     # writer.release()
     for i in range(batch_size):
-        cv2.imwrite('{:s}{:s}/{:s}_{:d}.jpg'.format(output_dir, mask_attr, filename, i), frames[i, :, :, :],
+        cv2.imwrite('{:s}{:s}/{:s}_{:03d}.jpg'.format(output_dir, mask_attr, filename, i), frames[i, :, :, :],
                     [int(cv2.IMWRITE_JPEG_QUALITY), 90])
 
 
 def random_masks(mask_lists, batch_size, resize_size, mask_attr):
-    mask_total = sum([len(mask_attr[x]) for x in mask_attr.keys()])
+    # mask_total = sum([len(mask_attr[x]) for x in mask_attr.keys()])
 
-    mask_boundary, mask_order = [{}, []]
-    for x in mask_attr.keys():
-        mask_boundary[x] = len(mask_attr[x]) / mask_total
-        mask_order.append(int(x))
-    mask_order.sort()
-    mask_boundary = [mask_boundary[str(x)] for x in mask_order]
+    mask_attr_str = [str(x) for x in mask_attr.keys()]
+    mask_attr_str.sort()
+    r_attr_index = random.randint(0, len(mask_attr.keys()) - 1)
+    r_attr = mask_attr_str[r_attr_index]
 
-    temp, mask_dict = [0, []]
-    for index in range(len(mask_boundary)):
-        ratio = mask_boundary[index]
-        current_ratio = temp + ratio
-        mask_dict.append(current_ratio)
-        temp += ratio
-
-    r_attr = random.random()
-    for i in range(len(mask_dict)):
-        if mask_dict[i] > r_attr:
-            r_attr = str(mask_order[i])
-            break
+    # mask_boundary, mask_order = [{}, []]
+    # for x in mask_attr.keys():
+    #     mask_boundary[x] = len(mask_attr[x]) / mask_total
+    #     mask_order.append(int(x))
+    # mask_order.sort()
+    # mask_boundary = [mask_boundary[str(x)] for x in mask_order]
+    #
+    # temp, mask_dict = [0, []]
+    # for index in range(len(mask_boundary)):
+    #     ratio = mask_boundary[index]
+    #     current_ratio = temp + ratio
+    #     mask_dict.append(current_ratio)
+    #     temp += ratio
+    #
+    # r_attr = random.random()
+    # for i in range(len(mask_dict)):
+    #     if mask_dict[i] > r_attr:
+    #         r_attr = str(mask_order[i])
+    #         break
     r_coord_w, r_coord_h = [np.random.randint(0, 1000 - resize_size[0]), np.random.randint(0, 1000 - resize_size[1])]
 
     # select a random mask from attr list

@@ -2,7 +2,7 @@ import cv2
 from os import listdir
 from os.path import isfile, join
 import util
-import tensorflow as tf
+import numpy as np
 from random import shuffle
 import multiprocessing
 
@@ -15,17 +15,11 @@ out_base_dir = '/home/media/overlap/'
 skip = 0
 
 testset_ratio = 0.4
-sess = tf.InteractiveSession()
-base = tf.placeholder(tf.float32, [batch_frames, None, None, 3])
-mask = tf.placeholder(tf.float32, [batch_frames, None, None, 3])
-# define overlap operation
-r_brightness = tf.reduce_max(base) * tf.random_uniform((), 0.8, 1)
-overlapping = mask * r_brightness + (tf.ones_like(mask, tf.float32) - mask) * base
 
 
 def overlap_process(my_arg):
     vid_file_r, mask_files, mask_attr, video_index = my_arg
-    print('{:s} \n'.format(vid_file_r))
+    print('overlapping: {:s} \n'.format(vid_file_r))
     base_vid = cv2.VideoCapture(vid_file_r)
     assert base_vid.isOpened(), 'Error while opening video: %s' % vid_file_r
     width, height, frame_num = util.get_vid_info(base_vid)
@@ -46,7 +40,9 @@ def overlap_process(my_arg):
         frames /= 255.
         masks /= 255.
 
-        overlapped = sess.run(overlapping, feed_dict={base: frames, mask: masks})
+        snow_opacity = np.amax(frames) * np.random.uniform(0.8, 1.)
+        overlapped = masks * snow_opacity + (np.ones_like(masks, np.float32) - masks) * frames
+
         util.write_img_output(overlapped, overlapped_mask_attr, out_base_dir + out_type + 'syn/', batch_frames,
                               filename='mask_{:03d}_{:03d}'.format(video_index, int(index / batch_frames)))
         util.write_img_output(frames, overlapped_mask_attr, out_base_dir + out_type + 'gt/', batch_frames,
@@ -64,7 +60,7 @@ def main():
     haze = mask_files[:10]
     mask_files = mask_files[10:]
 
-    pool = multiprocessing.Pool(processes=4)
+    pool = multiprocessing.Pool(processes=5)
 
     # tmp = 0
     proc_args = []
@@ -78,7 +74,6 @@ def main():
     pool.map(overlap_process, proc_args)
     pool.close()
     pool.join()
-
 
 
 if __name__ == '__main__':

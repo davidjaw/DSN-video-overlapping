@@ -4,6 +4,7 @@ from os.path import isfile, join
 import util
 import tensorflow as tf
 from random import shuffle
+import multiprocessing
 
 mask_dir = './synthetic_video/'
 base_dir = './wo_snow_vid/'
@@ -14,6 +15,45 @@ out_base_dir = '/home/media/overlap/'
 skip = 0
 
 testset_ratio = 0.4
+sess = tf.InteractiveSession()
+base = tf.placeholder(tf.float32, [batch_frames, None, None, 3])
+mask = tf.placeholder(tf.float32, [batch_frames, None, None, 3])
+# define overlap operation
+r_brightness = tf.reduce_max(base) * tf.random_uniform((), 0.8, 1)
+overlapping = mask * r_brightness + (tf.ones_like(mask, tf.float32) - mask) * base
+
+
+def overlap_process(my_arg):
+    vid_file_r, mask_files, mask_attr, video_index = my_arg
+    print('{:s} \n'.format(vid_file_r))
+    base_vid = cv2.VideoCapture(vid_file_r)
+    assert base_vid.isOpened(), 'Error while opening video: %s' % vid_file_r
+    width, height, frame_num = util.get_vid_info(base_vid)
+
+    # random the order of clips into testset and trainset
+    random_set_order = [1 if x > int(frame_num / batch_frames) * testset_ratio else 0 for x in
+                        range(int(frame_num / batch_frames))]
+    shuffle(random_set_order)
+    for index in range(0, frame_num, batch_frames):
+        if index + batch_frames > frame_num:
+            break
+
+        out_type = 'test/' if random_set_order[int(index / batch_frames)] == 0 else 'train/'
+        # random masks for each batch
+        frames, resize_size = util.stack_frames(base_vid, batch_frames, width, height)
+        masks, overlapped_mask_attr = util.random_masks(mask_files, batch_frames, resize_size, mask_attr)
+
+        frames /= 255.
+        masks /= 255.
+
+        overlapped = sess.run(overlapping, feed_dict={base: frames, mask: masks})
+        util.write_img_output(overlapped, overlapped_mask_attr, out_base_dir + out_type + 'syn/', batch_frames,
+                              filename='mask_{:03d}_{:03d}'.format(video_index, int(index / batch_frames)))
+        util.write_img_output(frames, overlapped_mask_attr, out_base_dir + out_type + 'gt/', batch_frames,
+                              filename='mask_{:03d}_{:03d}'.format(video_index, int(index / batch_frames)))
+        util.write_img_output(masks, overlapped_mask_attr, out_base_dir + out_type + 'mask/', batch_frames,
+                              filename='mask_{:03d}_{:03d}'.format(video_index, int(index / batch_frames)))
+        print('mask_{:03d}_{:03d}.mp4 is transferred'.format(video_index, int(index / batch_frames), out_type))
 
 
 def main():
@@ -24,50 +64,21 @@ def main():
     haze = mask_files[:10]
     mask_files = mask_files[10:]
 
-    with tf.Session() as sess:
-        # define overlap operation
-        base = tf.placeholder(tf.float32, [batch_frames, None, None, 3])
-        mask = tf.placeholder(tf.float32, [batch_frames, None, None, 3])
-        r_brightness = tf.reduce_max(base) * tf.random_uniform((), 0.8, 1)
-        overlapping = mask * r_brightness + (tf.ones_like(mask, tf.float32) - mask) * base
+    pool = multiprocessing.Pool(processes=4)
 
-        # tmp = 0
-        # read videos
-        for video_index in range(len(base_files)):
-            if video_index < skip:
-                continue
-            vid_file_r = base_dir + base_files[video_index]
-            base_vid = cv2.VideoCapture(vid_file_r)
-            if not base_vid.isOpened():
-                print('Error while opening video: %s' % vid_file_r)
-                break
-            width, height, frame_num = util.get_vid_info(base_vid)
-            # tmp += int(frame_num / batch_frames)
-            # print(tmp)
+    # tmp = 0
+    proc_args = []
+    # read videos
+    for video_index in range(len(base_files)):
+        if video_index < skip:
+            continue
+        vid_file_r = base_dir + base_files[video_index]
+        proc_args.append([vid_file_r, mask_files, mask_attr, video_index])
 
-            # random the order of clips into testset and trainset
-            random_set_order = [1 if x > int(frame_num / batch_frames) * testset_ratio else 0 for x in range(int(frame_num / batch_frames))]
-            shuffle(random_set_order)
-            for index in range(0, frame_num, batch_frames):
-                if index + batch_frames > frame_num:
-                    break
+    pool.map(overlap_process, proc_args)
+    pool.close()
+    pool.join()
 
-                out_type = 'test/' if random_set_order[int(index / batch_frames)] == 0 else 'train/'
-                # random masks for each batch
-                frames, resize_size = util.stack_frames(base_vid, batch_frames, width, height)
-                masks, overlapped_mask_attr = util.random_masks(mask_files, batch_frames, resize_size, mask_attr)
-
-                frames /= 255.
-                masks /= 255.
-
-                overlapped = sess.run(overlapping, feed_dict={base: frames, mask: masks})
-                util.write_img_output(overlapped, overlapped_mask_attr, out_base_dir + out_type + 'syn/', batch_frames,
-                                      filename='mask_{:03d}_{:03d}'.format(video_index, int(index / batch_frames)))
-                util.write_img_output(frames, overlapped_mask_attr, out_base_dir + out_type + 'gt/', batch_frames,
-                                      filename='mask_{:03d}_{:03d}'.format(video_index, int(index / batch_frames)))
-                util.write_img_output(masks, overlapped_mask_attr, out_base_dir + out_type + 'mask/', batch_frames,
-                                      filename='mask_{:03d}_{:03d}'.format(video_index, int(index / batch_frames)))
-                print('mask_{:03d}_{:03d}.mp4 is transferred'.format(video_index, int(index / batch_frames), out_type))
 
 
 if __name__ == '__main__':
